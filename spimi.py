@@ -1,14 +1,14 @@
 from nltk import word_tokenize
 from bs4 import BeautifulSoup
 from nltk.corpus import PlaintextCorpusReader
-import re
 import string
 import json
-import itertools
 from collections import defaultdict
-
+from collections import OrderedDict
+import os
 
 block_size = 0
+block = 0
 
 
 def generate_token_list():
@@ -25,12 +25,8 @@ def generate_token_list():
         for document_text in parsed_sgm.find_all('reuters'):
             spimi_invert(hash_dict, document_text)
 
-    with open("files/unsorted_token_list.json", mode="w", encoding="utf-8") as myFile:
-        json.dump(hash_dict, myFile)
-
 
 def spimi_invert(hash_dict, document_text):
-
     global block_size
     doc_id = int(document_text['newid'])
     doc_text = str(document_text.find('text'))
@@ -40,48 +36,55 @@ def spimi_invert(hash_dict, document_text):
     for c in string.punctuation:
         raw = raw.replace(c, " ")
     tokens = word_tokenize(raw)
+
     for token in tokens:
         if block_size == 500:
+            write_block_to_disk(hash_dict)
             block_size = 0
-            #sort terms in dict, write block to file BlockX
-            #clean hash_dict, increment file number by 1
-            #Continue parsing tokens
         block_size += 1
         hash_dict[token].append(doc_id)
 
-
-#Use this helper function to test a small amount of data
-def test_token_list():
-
-    # load reuters files with the help of NLTK's PlaintextCorpusReader
-    sgm_files = PlaintextCorpusReader("reuters", '.*\.sgm')
-    token_list = []
-
-    f = open("reuters/reut2-000.sgm")
-    sgm_file = f.read()
-    parsed_sgm = BeautifulSoup(sgm_file, 'html.parser')
-    unsorted_token_list = open("files/unsorted_token_list.txt", 'w') #use for pretty print the list
-
-    for document_text in parsed_sgm.find_all('reuters'):
-        doc_id = int(document_text['newid'])
-        if doc_id > 4:
-            continue
-        doc_text = str(document_text.find('text'))
-        raw = BeautifulSoup(doc_text, 'html.parser').get_text()
-        raw = raw.replace("\u0002", '')
-        raw = raw.replace("\u0003", '')
-        for c in string.punctuation:
-            raw = raw.replace(c, " ")
-        raw = re.sub(r"\d", "", raw)
-        tokens = word_tokenize(raw)
-        for token in tokens:
-            token_list.append((token, doc_id))
-            print(json.dumps([token, doc_id]), file=unsorted_token_list)
-
-    with open("files/unsorted_token_list.json", mode="w", encoding="utf-8") as myFile:
-        json.dump(token_list, myFile)
+    if doc_id == 21578:
+        write_block_to_disk(hash_dict)
 
 
-generate_token_list()
+# sort terms in dict, write block to file BlockX
+# clear hash_dict, increment file number by 1
+def write_block_to_disk(hash_dict):
+    global block
+    sorted_dict = OrderedDict(sorted(hash_dict.items()))
+    # file_name = "blocks/Block" + str(block) + ".json"
+    file_name = "testBlocks/Block" + str(block) + ".json"
+    with open(file_name, mode="w", encoding="utf-8") as myFile:
+        json.dump(sorted_dict, myFile)
+    block += 1
+    hash_dict.clear()
 
-#test_token_list()
+
+def merge_blocks():
+    temp_block = OrderedDict()
+    inverted_index = dict()
+    files = [os.path.join("blocks/", f) for f in os.listdir("blocks")]
+    files.sort(key=lambda x: os.path.getmtime(x))
+
+    for filename in files:
+        if filename.endswith(".json"):
+            f = open(filename)
+            file = f.read()
+            if len(inverted_index) == 0:
+                inverted_index = json.loads(file)
+            else:
+                temp_block = json.loads(file)
+                print("(", filename, ") ")
+                keys = set(inverted_index).union(temp_block)
+                no = []
+                merged_block = dict((k, inverted_index.get(k, no) + temp_block.get(k, no)) for k in keys)
+                inverted_index = OrderedDict(sorted(merged_block.items()))
+
+    with open("files/inverted_index.json", mode="w", encoding="utf-8") as myFile:
+        json.dump(inverted_index, myFile)
+
+
+#generate_token_list()
+
+merge_blocks()
