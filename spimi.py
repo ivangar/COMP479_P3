@@ -5,6 +5,7 @@ import string
 import json
 from collections import defaultdict
 from collections import OrderedDict
+import collections
 import os
 
 block_size = 0
@@ -62,27 +63,19 @@ def write_block_to_disk(hash_dict):
 
 
 def merge_blocks():
-    temp_block = OrderedDict()
-    inverted_index = dict()
+    super_dict = {}
     files = [os.path.join("blocks/", f) for f in os.listdir("blocks")]
     files.sort(key=lambda x: os.path.getmtime(x))
 
     for filename in files:
-        if filename.endswith(".json"):
-            f = open(filename)
-            file = f.read()
-            if len(inverted_index) == 0:
-                inverted_index = json.loads(file)
-            else:
-                temp_block = json.loads(file)
-                print("(", filename, ") ")
-                keys = set(inverted_index).union(temp_block)
-                no = []
-                merged_block = dict((k, inverted_index.get(k, no) + temp_block.get(k, no)) for k in keys)
-                inverted_index = OrderedDict(sorted(merged_block.items()))
+        f = open(filename)
+        file = f.read()
+        d = json.loads(file)
+        for k, v in d.items():
+            super_dict.setdefault(k, []).extend(v)
 
     with open("files/inverted_index.json", mode="w", encoding="utf-8") as myFile:
-        json.dump(inverted_index, myFile)
+        json.dump(super_dict, myFile)
 
 
 #generate_token_list()
