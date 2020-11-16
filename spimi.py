@@ -63,7 +63,7 @@ def write_block_to_disk(hash_dict):
 
 
 def merge_blocks():
-    super_dict = {}
+    inverse_dict = {}
     files = [os.path.join("blocks/", f) for f in os.listdir("blocks")]
     files.sort(key=lambda x: os.path.getmtime(x))
 
@@ -72,10 +72,10 @@ def merge_blocks():
         file = f.read()
         d = json.loads(file)
         for k, v in d.items():
-            super_dict.setdefault(k, []).extend(v)
+            inverse_dict.setdefault(k, []).extend(v)
 
     with open("files/inverted_index.json", mode="w", encoding="utf-8") as myFile:
-        json.dump(super_dict, myFile)
+        json.dump(inverse_dict, myFile)
 
 
 #generate_token_list()

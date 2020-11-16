@@ -1,28 +1,46 @@
 import json
 import os.path
+import string
 
 
-def challenge_queries():
-    queries = ["pineapple", "Phillippines", "Brierley", "Chrysler"]
-    for query in queries:
-        postings = search_query(query)
-        if not postings:
-            continue
-        dump_results(query, postings, "files/challengeQueries.json")
+def get_content():
 
-
-def search_query(query):
-    f = open("files/naive_indexer.json")
+    f = open("files/inverted_index.json")
     file = f.read()
-    naive_index = json.loads(file)
-    doc_ids = []
-    lower_case = query.lower()
+    parsed_file = json.loads(file)
+    return parsed_file
 
-    for token in naive_index:
-        if lower_case == token[0].lower():
-            doc_ids.extend(token[1][1])
 
-    sorted_list = sorted(doc_ids)
+def search_query(query, operation="single"):
+    words = sum([word.strip(string.punctuation).isalpha() for word in query.split()])
+    naive_index = get_content()
+    sorted_list = []
+
+    if words == 1:
+        if query in naive_index:
+            doc_ids = naive_index.get(query)
+            sorted_list = sorted(doc_ids)
+
+    if words >= 2:
+        postings_list = []
+        doc_ids = []
+        terms = query.split()
+        for term in terms:
+            postings = search_query(term)
+            if not postings:
+                continue
+            else:
+                postings_list.append(postings)
+                print(postings)
+
+        if operation == "intersection":
+            doc_ids = set(postings_list[0]).intersection(*postings_list)
+
+        if operation == "union":
+            doc_ids = set().union(*postings_list)
+
+        sorted_list = sorted(doc_ids)
+
     return sorted_list
 
 
@@ -39,35 +57,41 @@ def dump_results(query, postings, output_file):
         json.dump(q, open(output_file, "w", encoding="utf-8"), indent=3)
 
 
-def get_query():
-    print("please enter your query (only single term): ")
-    query = input()
-    terminate = False
-
-    while not terminate:
-
-        while not query or ' ' in query:
-            print("please enter your query (only single term): ")
-            query = input()
-
-        postings = search_query(query)
-
-        if not postings:
-            print("Your query was not found in the index ")
-        else:
-            print("Your query was found in the following document IDs : ")
-            print(*postings, sep=", ")
-            dump_results(query, postings, "files/sampleQueries.json")
-
-        print("Do you want to query again? (Y/N) ")
-        answer = input()
-        if answer.lower() == "n":
-            terminate = True
-        elif answer.lower() == "y":
-            print("please enter your query (only single term): ")
-            query = input()
+def get_single_query():
+    query = "the"
+    postings = search_query(query)
+    if not postings:
+        print("Your query was not found in the index ")
+    else:
+        print("Your query was found in the following document IDs : ")
+        print(*postings, sep="\n")
+        dump_results(query, postings, "files/sampleQueries.json")
 
 
-challenge_queries()
+def get_intersection_query():
+    query = "Cental Soya trction"
+    postings = search_query(query, "intersection")
+    if not postings:
+        print("Your query was not found in the index ")
+    else:
+        print("Your query was found in the following document IDs : ")
+        print(*postings, sep=", ")
+        dump_results(query, postings, "files/sampleQueries.json")
 
-get_query()
+
+def get_union_query():
+    query = "ichi Fuju"
+    postings = search_query(query, "union")
+    if not postings:
+        print("Your query was not found in the index ")
+    else:
+        print("Your query was found in the following document IDs : ")
+        print(*postings, sep=", ")
+        dump_results(query, postings, "files/sampleQueries.json")
+
+
+# get_single_query()
+
+get_intersection_query()
+
+# get_union_query()
