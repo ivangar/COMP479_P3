@@ -10,25 +10,34 @@ import os
 
 block_size = 0
 block = 0
+total_docs = 0
+total_tokens = 0
+doc_lengths = {}
 
 
 def generate_token_list():
+    global total_docs
 
     # load reuters files with the help of NLTK's PlaintextCorpusReader
-    sgm_files = PlaintextCorpusReader("test", '.*\.sgm')
+    sgm_files = PlaintextCorpusReader("reuters", '.*\.sgm')
     hash_dict = defaultdict(list)
 
     for fileid in sgm_files.fileids():
-        f = open("test" + '/' + fileid)
+        f = open("reuters" + '/' + fileid)
         sgm_file = f.read()
         parsed_sgm = BeautifulSoup(sgm_file, 'html.parser')
 
         for document_text in parsed_sgm.find_all('reuters'):
             spimi_invert(hash_dict, document_text)
+            total_docs += 1
+
+    generate_BM25_data()
 
 
 def spimi_invert(hash_dict, document_text):
     global block_size
+    global doc_lengths
+    global total_tokens
     doc_id = int(document_text['newid'])
     doc_text = str(document_text.find('text'))
     raw = BeautifulSoup(doc_text, 'html.parser').get_text()
@@ -48,14 +57,16 @@ def spimi_invert(hash_dict, document_text):
     if doc_id == 21578:
         write_block_to_disk(hash_dict)
 
+    doc_lengths[doc_id] = len(tokens)
+    total_tokens += len(tokens)
+
 
 # sort terms in dict, write block to file BlockX
 # clear hash_dict, increment file number by 1
 def write_block_to_disk(hash_dict):
     global block
     sorted_dict = OrderedDict(sorted(hash_dict.items()))
-    # file_name = "blocks/Block" + str(block) + ".json"
-    file_name = "testBlocks/Block" + str(block) + ".json"
+    file_name = "blocks/Block" + str(block) + ".json"
     with open(file_name, mode="w", encoding="utf-8") as myFile:
         json.dump(sorted_dict, myFile)
     block += 1
@@ -78,6 +89,13 @@ def merge_blocks():
         json.dump(inverse_dict, myFile)
 
 
-#generate_token_list()
+def generate_BM25_data():
+    length_average = total_tokens/total_docs
+    bm25_dict = {"total_docs": total_docs, "length_average": length_average, "doc_lengths": doc_lengths}
+    with open("files/bm25_data.json", mode="w", encoding="utf-8") as myFile:
+        json.dump(bm25_dict, myFile)
 
-merge_blocks()
+
+generate_token_list()
+
+#merge_blocks()
