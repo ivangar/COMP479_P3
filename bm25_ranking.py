@@ -1,7 +1,11 @@
 import json
-import os.path
 import string
 from math import log10
+from tabulate import tabulate
+import random
+
+b = random.uniform(0, 1)
+k1 = random.choice([1.2, 2])
 
 
 def get_content(file_name):
@@ -14,12 +18,14 @@ def get_content(file_name):
 
 def search_query(query):
     words = sum([word.strip(string.punctuation).isalpha() for word in query.split()])
-    naive_index = get_content("files/inverted_index.json")
+    spimi_index = get_content("files/inverted_index.json")
     postings_list = {}
 
     if words == 1:
-        if query in naive_index:
-            doc_ids = naive_index.get(query)
+        for c in string.punctuation:
+            query = query.replace(c, "")
+        if query in spimi_index:
+            doc_ids = spimi_index.get(query)
             postings_list[query] = doc_ids
 
     if words >= 2:
@@ -54,7 +60,6 @@ def compute_rankings(query, results):
                 if term_freq > 0:
                     doc_score += compute_bm25_score(total_docs, doc_length_average, doc_length, doc_freq, term_freq)
 
-        print("Doc Id ", doc_id, " score ", doc_score)
         bm25_rankings[doc_id] = doc_score
         doc_score = 0
 
@@ -62,23 +67,19 @@ def compute_rankings(query, results):
 
 
 def compute_bm25_score(total_docs, doc_length_average, doc_length, doc_freq, term_freq):
-    k1 = 0.5
-    b = 0.5
-    upper = (term_freq * (k1 + 1))
-    below = (k1 * ((1 - b) + b * (doc_length / doc_length_average)) + term_freq)
-    score = log10((total_docs / doc_freq) * upper / below)
-    return score
+    return log10((total_docs / doc_freq) * (term_freq * (k1 + 1)) / (k1 * ((1 - b) + b * (doc_length / doc_length_average)) + term_freq))
 
 
 def get_ranking():
-    query = "Jimmy Carter"
+    query = "Drug company bankruptcies"
     results = search_query(query)
     if not results:
-        print("Your query was not found in the index ")
+        print("\nYour query [", query, "] was not found in the index ")
     else:
-        print("Your query was found in the following document IDs : ")
-        print(results)
         rankings = compute_rankings(query, results)
+        sorted_rankings = sorted(rankings.items(), key=lambda item: item[1], reverse=True)
+        print("\nRankings of the query [", query, "]\n")
+        print(tabulate(sorted_rankings, headers=["Document ID", "Ranking"], numalign="left", floatfmt=".6f", tablefmt="github"))
 
 
 get_ranking()

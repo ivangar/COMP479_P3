@@ -13,12 +13,14 @@ def get_content():
 
 def search_query(query, operation="single"):
     words = sum([word.strip(string.punctuation).isalpha() for word in query.split()])
-    naive_index = get_content()
+    spimi_index = get_content()
     sorted_list = []
 
     if words == 1:
-        if query in naive_index:
-            doc_ids = naive_index.get(query)
+        for c in string.punctuation:
+            query = query.replace(c, "")
+        if query in spimi_index:
+            doc_ids = spimi_index.get(query)
             sorted_list = sorted(doc_ids)
 
     if words >= 2:
@@ -31,7 +33,6 @@ def search_query(query, operation="single"):
                 continue
             else:
                 postings_list.append(postings)
-                print(postings)
 
         if operation == "intersection":
             doc_ids = set(postings_list[0]).intersection(*postings_list)
@@ -57,41 +58,33 @@ def dump_results(query, postings, output_file):
         json.dump(q, open(output_file, "w", encoding="utf-8"), indent=3)
 
 
-def get_single_query():
-    query = "the"
-    postings = search_query(query)
+def dump_postings(query, postings):
     if not postings:
-        print("Your query was not found in the index ")
+        print("Your query [", query, "] was not found in the index ")
     else:
-        print("Your query was found in the following document IDs : ")
+        print("Your query [", query, "] was found in the following document IDs : ")
         print(*postings, sep="\n")
         dump_results(query, postings, "files/sampleQueries.json")
 
 
-def get_intersection_query():
-    query = "Cental Soya trction"
-    postings = search_query(query, "intersection")
-    if not postings:
-        print("Your query was not found in the index ")
-    else:
-        print("Your query was found in the following document IDs : ")
-        print(*postings, sep=", ")
-        dump_results(query, postings, "files/sampleQueries.json")
+def sample_queries():
+    # Search for a single term query
+    postings = search_query("George", "single")
+    dump_postings("George", postings)
+
+    # a) This sentence should return all the documents that contain any query term
+    postings = search_query("Democrats' welfare and healthcare reform policies", "union")
+    dump_postings("Democrats' welfare and healthcare reform policies", postings)
+
+    # c) George Bush is a full name, so it should intersect both query results (AND)
+    postings = search_query("George Bush", "intersection")
+    dump_postings("George Bush", postings)
+
+    # b) This sentence should return results with any of it's terms (OR)
+    postings = search_query("Drug company bankruptcies", "union")
+    dump_postings("Drug company bankruptcies", postings)
 
 
-def get_union_query():
-    query = "ichi Fuju"
-    postings = search_query(query, "union")
-    if not postings:
-        print("Your query was not found in the index ")
-    else:
-        print("Your query was found in the following document IDs : ")
-        print(*postings, sep=", ")
-        dump_results(query, postings, "files/sampleQueries.json")
+sample_queries()
 
 
-# get_single_query()
-
-get_intersection_query()
-
-# get_union_query()

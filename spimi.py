@@ -5,7 +5,6 @@ import string
 import json
 from collections import defaultdict
 from collections import OrderedDict
-import collections
 import os
 
 block_size = 0
@@ -13,12 +12,12 @@ block = 0
 total_docs = 0
 total_tokens = 0
 doc_lengths = {}
+max_block_size = 500
 
 
 def generate_token_list():
     global total_docs
 
-    # load reuters files with the help of NLTK's PlaintextCorpusReader
     sgm_files = PlaintextCorpusReader("reuters", '.*\.sgm')
     hash_dict = defaultdict(list)
 
@@ -48,7 +47,7 @@ def spimi_invert(hash_dict, document_text):
     tokens = word_tokenize(raw)
 
     for token in tokens:
-        if block_size == 500:
+        if block_size == max_block_size:
             write_block_to_disk(hash_dict)
             block_size = 0
         block_size += 1
@@ -61,16 +60,21 @@ def spimi_invert(hash_dict, document_text):
     total_tokens += len(tokens)
 
 
-# sort terms in dict, write block to file BlockX
-# clear hash_dict, increment file number by 1
 def write_block_to_disk(hash_dict):
     global block
+    global max_block_size
+
     sorted_dict = OrderedDict(sorted(hash_dict.items()))
     file_name = "blocks/Block" + str(block) + ".json"
     with open(file_name, mode="w", encoding="utf-8") as myFile:
         json.dump(sorted_dict, myFile)
     block += 1
     hash_dict.clear()
+
+    if block == 0:
+        max_block_size = 500
+    else:
+        max_block_size = 10000
 
 
 def merge_blocks():
@@ -98,4 +102,4 @@ def generate_BM25_data():
 
 generate_token_list()
 
-#merge_blocks()
+merge_blocks()
